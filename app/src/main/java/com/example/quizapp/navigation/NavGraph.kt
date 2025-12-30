@@ -8,8 +8,9 @@ import com.example.quizapp.ui.auth.AuthRoute
 import com.example.quizapp.ui.auth.LoginScreen
 import com.example.quizapp.ui.auth.RegisterScreen
 import com.example.quizapp.ui.home.HomeScreen
-import com.example.quizapp.ui.quiz.QuizPlaceholder
-import com.example.quizapp.ui.results.ResultsPlaceholder
+import com.example.quizapp.ui.quiz.QuizScreen
+import com.example.quizapp.ui.result.ResultScreen
+import com.example.quizapp.ui.results.ResultsScreen
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
@@ -26,6 +27,8 @@ fun NavGraph(
             AuthRoute.Login.route
         }
     ) {
+
+        // ---------------- AUTH ----------------
 
         composable(AuthRoute.Login.route) {
             LoginScreen(
@@ -53,14 +56,7 @@ fun NavGraph(
             )
         }
 
-        composable(AuthRoute.Quiz.route) {
-            QuizPlaceholder()
-        }
-
-        composable(AuthRoute.Results.route) {
-            ResultsPlaceholder()
-        }
-
+        // ---------------- HOME ----------------
 
         composable(AuthRoute.Home.route) {
             HomeScreen(
@@ -74,6 +70,51 @@ fun NavGraph(
                     navController.navigate(AuthRoute.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
+                }
+            )
+        }
+
+        // ---------------- QUIZ ----------------
+
+        composable(AuthRoute.Quiz.route) {
+            QuizScreen(
+                onQuizFinished = { score: Int, timeLeft: Int ->
+                    navController.navigate(
+                        "${AuthRoute.Result.route}/$score/$timeLeft"
+                    ) {
+                        popUpTo(AuthRoute.Quiz.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // ---------------- CELEBRATION RESULT ----------------
+
+        composable(
+            route = "${AuthRoute.Result.route}/{score}/{timeLeft}"
+        ) { backStackEntry ->
+            val score =
+                backStackEntry.arguments?.getString("score")?.toInt() ?: 0
+            val timeLeft =
+                backStackEntry.arguments?.getString("timeLeft")?.toInt() ?: 0
+
+            ResultScreen(
+                score = score,
+                timeLeft = timeLeft,
+                onBackToHome = {
+                    navController.navigate(AuthRoute.Home.route) {
+                        popUpTo(AuthRoute.Result.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // ---------------- MY RESULTS / TOP 10 ----------------
+
+        composable(AuthRoute.Results.route) {
+            ResultsScreen(
+                onBack = {
+                    navController.popBackStack()
                 }
             )
         }

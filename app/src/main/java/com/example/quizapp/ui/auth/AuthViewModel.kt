@@ -12,6 +12,7 @@ sealed class AuthRoute(val route: String) {
     object Home : AuthRoute("home")
     object Quiz : AuthRoute("quiz")
     object Results : AuthRoute("results")
+    object Result : AuthRoute("result")
 }
 
 
