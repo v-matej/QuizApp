@@ -10,8 +10,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private val questionsPerQuiz = 5
-
 class QuizViewModel(
     private val repository: QuizRepository = QuizRepository()
 ) : ViewModel() {
@@ -35,6 +33,16 @@ class QuizViewModel(
 
     private var timerJob: Job? = null
 
+    private val questionsPerQuiz = 5
+
+    private val shuffleAnswers = true
+
+    private var elapsedTime = 0
+
+    private var correctStreak = 0
+
+    private val maxTimePerQuestion = 10
+
     // --- INIT ---
 
     fun loadQuestions() {
@@ -44,9 +52,24 @@ class QuizViewModel(
             questions = allQuestions
                 .shuffled()
                 .take(questionsPerQuiz)
+                .map { question ->
+                    if (!shuffleAnswers) {
+                        question
+                    } else {
+                        val indexed = question.answers.mapIndexed { index, answer ->
+                            index to answer
+                        }.shuffled()
+
+                        question.copy(
+                            answers = indexed.map { it.second },
+                            correctIndex = indexed.indexOfFirst { it.first == question.correctIndex }
+                        )
+                    }
+                }
 
             currentQuestionIndex = 0
             score = 0
+            elapsedTime = 0
             timeLeft = 60
             isQuizFinished = false
             userAnswers.clear()
@@ -63,6 +86,7 @@ class QuizViewModel(
             while (timeLeft > 0 && !isQuizFinished) {
                 delay(1_000)
                 timeLeft--
+                elapsedTime++
             }
             if (timeLeft <= 0) {
                 finishQuiz()
@@ -80,13 +104,24 @@ class QuizViewModel(
         userAnswers.add(
             UserAnswer(
                 questionId = question.id,
-                selectedIndex = selectedIndex
+                selectedIndex = selectedIndex,
+                correctIndex = question.correctIndex
             )
         )
 
         if (selectedIndex == question.correctIndex) {
-            score += question.points
+            correctStreak++
+
+            val timeMultiplier =
+                1f + (timeLeft.coerceAtMost(maxTimePerQuestion) / maxTimePerQuestion.toFloat())
+
+            val streakBonus = correctStreak * 2
+            val earnedPoints = (question.points * timeMultiplier).toInt() + streakBonus
+
+            score += earnedPoints
             timeLeft += question.timeBonus
+        } else {
+            correctStreak = 0
         }
 
         goToNextQuestion()
@@ -109,7 +144,7 @@ class QuizViewModel(
         viewModelScope.launch {
             repository.saveResult(
                 score = score,
-                duration = 60 - timeLeft,
+                duration = elapsedTime,
                 answers = userAnswers
             )
         }
